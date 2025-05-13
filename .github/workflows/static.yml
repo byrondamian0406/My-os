@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Custom Launcher</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: url('https://setaswall.com/wp-content/uploads/2023/04/Huawei-Nova-11-Pro-Stock-Wallpaper-02.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: min-content;
+      justify-items: center;
+      align-items: start;
+      gap: 20px;
+      padding: 60px 5px 20px 5px;
+      max-width: 100vw;
+    }
+
+    .app-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      position: relative;
+      color: white;
+      font-weight: bold;
+    }
+
+    .expanding {
+      position: fixed;
+      z-index: 1000;
+      transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease, border-radius 0.3s ease, opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .active-hitbox {
+      pointer-events: auto !important;
+    }
+
+    .app-content {
+      padding: 80px 20px;
+      text-align: center;
+      font-size: 1.2em;
+    }
+
+    .navbar {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      height: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 10px 0;
+      gap: 10px;
+      z-index: 1100;
+      backdrop-filter: blur(12px);
+    }
+
+    .dock {
+      display: flex;
+      gap: 20px;
+      background: rgba(255,255,255,0.5);
+      padding: 10px 20px;
+      border-radius: 20px;
+      z-index: -5;
+    }
+
+    .nav-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+    }
+
+    #homeButton {
+      background: white;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    #homeButton img {
+      width: 24px;
+      height: 24px;
+    }
+
+    .punch-hole {
+      position: fixed;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 25px;
+      height: 25px;
+      background-color: black;
+      border-radius: 50%;
+      z-index: 2000;
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+<body>
+  <div class="punch-hole"></div>
+  <div class="app-container" id="appContainer"></div>
+  <div class="navbar">
+    <div class="dock" id="dock"></div>
+    <div id="homeButton" title="Home">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/8/8d/Home_Icon.svg" alt="Home">
+    </div>
+  </div>
+  <script>
+    const appContainer = document.getElementById('appContainer');
+    const dock = document.getElementById('dock');
+    const homeButton = document.getElementById('homeButton');
+    let openApps = [];
+
+    function getRandomColor() {
+      const letters = '0123456789ABCDEF';
+      let color = '#';
+      for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+      }
+      return color;
+    }
+
+    function createAppIcon(label = '') {
+      const icon = document.createElement('div');
+      icon.className = 'app-icon';
+      icon.style.backgroundColor = getRandomColor();
+      icon.textContent = label;
+      icon.onclick = () => {
+        if (openApps.length > 0) {
+          collapseIcon(openApps[0], openApps[0].__originalIcon);
+        }
+        expandIcon(icon);
+      };
+      return icon;
+    }
+
+    for (let i = 0; i < 28; i++) {
+      appContainer.appendChild(createAppIcon(i + 1));
+    }
+
+    for (let i = 0; i < 4; i++) {
+      const dockBtn = document.createElement('div');
+      dockBtn.className = 'nav-button';
+      dockBtn.style.backgroundColor = getRandomColor();
+      dockBtn.textContent = `D${i + 1}`;
+      dockBtn.onclick = () => {
+        if (openApps.length > 0) {
+          collapseIcon(openApps[0], openApps[0].__originalIcon);
+        }
+        expandIcon(dockBtn);
+      };
+      dock.appendChild(dockBtn);
+    }
+
+    function expandIcon(icon) {
+      const rect = icon.getBoundingClientRect();
+      const clone = document.createElement('div');
+      clone.className = 'app-icon expanding';
+      clone.innerHTML = icon.innerHTML;
+      clone.style.backgroundColor = icon.style.backgroundColor;
+      clone.style.color = icon.style.color;
+      clone.style.top = `${rect.top}px`;
+      clone.style.left = `${rect.left}px`;
+      clone.style.width = `${rect.width}px`;
+      clone.style.height = `${rect.height}px`;
+      clone.style.borderRadius = '16px';
+      clone.style.position = 'fixed';
+
+      document.body.appendChild(clone);
+      void clone.offsetWidth;
+
+      clone.style.top = '0px';
+      clone.style.left = '0px';
+      clone.style.width = '100vw';
+      clone.style.height = '100vh';
+      clone.style.borderRadius = '0px';
+
+      clone.addEventListener('transitionend', () => {
+        clone.classList.add('active-hitbox');
+        clone.innerHTML = `<div class="app-content">App</div>`;
+      }, { once: true });
+
+      clone.__originalIcon = icon;
+      clone.__originalRect = rect;
+      openApps = [clone];
+    }
+
+    function collapseIcon(clone, icon) {
+      const rect = clone.__originalRect;
+
+      clone.classList.remove('active-hitbox');
+      clone.innerHTML = icon.innerHTML;
+      clone.style.backgroundColor = icon.style.backgroundColor;
+
+      clone.style.top = `${rect.top}px`;
+      clone.style.left = `${rect.left}px`;
+      clone.style.width = `${rect.width}px`;
+      clone.style.height = `${rect.height}px`;
+      clone.style.borderRadius = '16px';
+      clone.style.opacity = '0';
+
+      clone.addEventListener('transitionend', () => {
+        clone.remove();
+        openApps = openApps.filter(a => a !== clone);
+      }, { once: true });
+    }
+
+    homeButton.onclick = () => {
+      openApps.forEach(app => {
+        collapseIcon(app, app.__originalIcon);
+      });
+      openApps = [];
+    };
+  </script>
+</body>
+</html>
